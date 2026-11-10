@@ -78,7 +78,11 @@ doctor_check_wifi() {
     esac
 
     if wifi_is_direct_ns "$ssid"; then
-        if wbt_tcp_check "$WBT_VPN_HOST" "$WBT_PPP_PORT" 4; then
+        # Con el PPP activo no se sondea el puerto: NetShare atiende una sola
+        # conexión y un `nc -z` puede cortar la sesión de pppd.
+        if ppp_is_up; then
+            doctor_ok "NetShare ${WBT_PPP_PORT}" "enlace PPP activo; sin sondeo"
+        elif wbt_tcp_check "$WBT_VPN_HOST" "$WBT_PPP_PORT" 4; then
             doctor_ok "NetShare ${WBT_PPP_PORT}" "responde en ${WBT_VPN_HOST}"
         else
             doctor_fail "NetShare ${WBT_PPP_PORT}" "sin respuesta; revisa NetShare/VPN del teléfono"

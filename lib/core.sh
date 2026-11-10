@@ -7,7 +7,7 @@
 # variables de entorno (útil para pruebas).
 # ---------------------------------------------------------------------------
 # shellcheck disable=SC2034  # usado por bin/wbt, status y doctor
-WBT_VERSION="0.1.0"
+WBT_VERSION="0.1.1"
 WBT_CONFIG_FILE="${WBT_CONFIG_FILE:-/etc/wbt/wbt.conf}"
 WBT_RUN_DIR="${WBT_RUN_DIR:-/run/wbt}"
 WBT_STATE_DIR="${WBT_STATE_DIR:-/var/lib/wbt}"

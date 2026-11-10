@@ -4,6 +4,14 @@ Todas las versiones notables de `wbt`. El formato sigue
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el proyecto usa
 versionado semántico.
 
+## [0.1.1] - 2026-11-10
+
+### Corregido
+
+- `wbt doctor` ya no sondea el puerto 8181 cuando el enlace PPP está activo.
+  NetShare atiende una sola conexión y el sondeo podía cortar la sesión de
+  `pppd` (`Modem hangup`); ahora se limita a comprobar el estado del enlace.
+
 ## [0.1.0] - 2026-11-10
 
 ### Añadido

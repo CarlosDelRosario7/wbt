@@ -157,7 +157,7 @@ assert_contains "$help_es" "Uso:" "ayuda en español"
 assert_contains "$help_en" "Usage:" "ayuda en inglés"
 assert_contains "$help_both" "Uso:" "--help incluye español"
 assert_contains "$help_both" "Usage:" "--help incluye inglés"
-assert_eq "wbt 0.1.0" "$("$ROOT/bin/wbt" version)" "wbt version"
+assert_eq "wbt 0.1.1" "$("$ROOT/bin/wbt" version)" "wbt version"
 
 set +e
 "$ROOT/bin/wbt" comando-inexistente >/dev/null 2>&1
