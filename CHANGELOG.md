@@ -32,7 +32,8 @@ versionado semántico.
 - Unidades `wbt-ppp.service` y `wbt-watch.service` con protección contra
   bucles de reinicio (código 75).
 - README en español y inglés, ayuda bilingüe, licencia GPL-3.0-or-later.
-- Pruebas de shell, pruebas del proxy Python y CI con shellcheck.
+- Pruebas de shell, pruebas del proxy Python y validación local con
+  shellcheck (`make release`).
 - `contrib/wbt.bat` conservado como referencia del script original.
 
 ### Notas

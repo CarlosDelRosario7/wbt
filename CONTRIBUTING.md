@@ -11,7 +11,8 @@ make test    # pruebas de shell + unittest del proxy
 make check   # ambas
 ```
 
-El CI ejecuta `make check` en cada push y pull request.
+El release se valida en local con `make release`, que exige un árbol limpio y
+ejecuta `make check`. Después se crea el tag y se publica manualmente.
 
 ## Estilo
 

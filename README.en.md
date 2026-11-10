@@ -339,12 +339,14 @@ install.sh / uninstall.sh   Install and uninstall
 ## Development
 
 ```bash
-make lint    # shellcheck + bash -n
-make test    # shell tests + proxy unittest
-make check   # lint + test
+make lint     # shellcheck + bash -n
+make test     # shell tests + proxy unittest
+make check    # lint + test
+make release  # verify a clean tree and validate the release locally
 ```
 
-GitHub CI runs `make check` on every push and pull request.
+Releases are validated **locally** with `make release`; then create the tag
+with `git tag -a vX.Y.Z -m "wbt X.Y.Z"` and push it with `git push`.
 
 ## License
 
