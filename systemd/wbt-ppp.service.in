@@ -1,0 +1,22 @@
+[Unit]
+Description=wbt - NetShare PPP link
+Documentation=https://github.com/CarlosDelRosario7/wbt
+After=NetworkManager.service network-pre.target
+Wants=NetworkManager.service
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+ExecStart=@BINDIR@/wbt ppp --service
+Environment=WBT_LOG_FILE=/var/log/wbt.log
+Restart=on-failure
+RestartSec=10
+# 75 = no hay DIRECT-NS-* o NetShare no responde. No reintentar en bucle:
+# el watcher se encarga de recuperar el enlace cuando vuelva a estar disponible.
+RestartPreventExitStatus=75
+TimeoutStopSec=25
+KillMode=mixed
+
+[Install]
+WantedBy=multi-user.target

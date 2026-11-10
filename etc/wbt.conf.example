@@ -1,0 +1,48 @@
+# Configuración de wbt
+# ---------------------------------------------------------------------------
+# Copia este archivo a /etc/wbt/wbt.conf y descomenta lo que necesites cambiar.
+# Los valores comentados son los predeterminados.
+#
+# wbt configuration file. Copy to /etc/wbt/wbt.conf and uncomment as needed.
+# ---------------------------------------------------------------------------
+
+# Interfaz Wi-Fi de la STA. "auto" detecta la primera interfaz Wi-Fi.
+# WBT_WIFI_IFACE="auto"
+
+# Interfaz PPP que crea pppd.
+# WBT_PPP_IFACE="ppp0"
+
+# Servidor PPP de NetShare en el teléfono.
+# WBT_VPN_HOST="192.168.49.1"
+# WBT_PPP_PORT="8181"
+# WBT_PPP_USER="netshare"
+# WBT_PPP_PASS="0000"
+# WBT_PPP_PEER="netshare"
+
+# Proxy de reencuadre PPP. Normalmente no hace falta cambiarlo.
+# WBT_PPP_PROXY="/usr/local/lib/wbt/netshare_ppp_proxy.py"
+
+# Comprobación de salud del watcher.
+# WBT_HTTP_CHECK_URL="https://example.com"
+# WBT_WATCH_INTERVAL="20"
+# WBT_WATCH_FAILS="2"
+# WBT_WATCH_COOLDOWN="90"
+# WBT_WATCH_GRACE="45"
+# WBT_WATCH_RESTART_GRACE="60"
+
+# Perfil de wifi-hotspot para wbt share. Si se dejan vacíos se usa el perfil
+# guardado por wifi-hotspot (recomendado).
+# WBT_SHARE_SSID=""
+# WBT_SHARE_PASSWORD=""
+
+# Log (solo se escribe si wbt corre como root; journald también lo captura).
+# WBT_LOG_FILE="/var/log/wbt.log"
+
+# Modo USB (experimental).
+# WBT_USB_LOCAL_PORT="18181"
+
+# Modo SSTP (experimental).
+# WBT_SSTP_PORT="8383"
+# WBT_SSTP_USER="def"
+# WBT_SSTP_PASS="0000"
+# WBT_SSTP_P12_PASS="123456"

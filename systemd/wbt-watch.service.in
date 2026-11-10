@@ -1,0 +1,15 @@
+[Unit]
+Description=wbt - NetShare link watchdog
+Documentation=https://github.com/CarlosDelRosario7/wbt
+After=network.target wbt-ppp.service
+Wants=wbt-ppp.service
+
+[Service]
+Type=simple
+ExecStart=@BINDIR@/wbt watch --interval 20
+Environment=WBT_LOG_FILE=/var/log/wbt.log
+Restart=always
+RestartSec=15
+
+[Install]
+WantedBy=multi-user.target

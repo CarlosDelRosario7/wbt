@@ -1,0 +1,262 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# wbt - Internet por NetShare (PPP sobre Wi-Fi Direct) y hotspot opcional.
+#
+# Punto de entrada. La lógica vive en lib/*.sh para poder probarla por partes.
+
+set -euo pipefail
+
+WBT_SELF="$(readlink -f "${BASH_SOURCE[0]}")"
+WBT_BIN_DIR="$(dirname "$WBT_SELF")"
+
+if [[ -n "${WBT_LIBDIR:-}" ]]; then
+    :
+elif [[ -f "$WBT_BIN_DIR/../lib/core.sh" ]]; then
+    WBT_LIBDIR="$(cd "$WBT_BIN_DIR/../lib" && pwd)"
+elif [[ -f "$WBT_BIN_DIR/../lib/wbt/core.sh" ]]; then
+    WBT_LIBDIR="$(cd "$WBT_BIN_DIR/../lib/wbt" && pwd)"
+elif [[ -f "/usr/local/lib/wbt/core.sh" ]]; then
+    WBT_LIBDIR="/usr/local/lib/wbt"
+elif [[ -f "/usr/lib/wbt/core.sh" ]]; then
+    WBT_LIBDIR="/usr/lib/wbt"
+else
+    printf 'wbt: no encuentro lib/core.sh (define WBT_LIBDIR)\n' >&2
+    exit 1
+fi
+export WBT_LIBDIR
+
+# shellcheck source=/dev/null
+source "$WBT_LIBDIR/core.sh"
+# shellcheck source=/dev/null
+source "$WBT_LIBDIR/wifi.sh"
+# shellcheck source=/dev/null
+source "$WBT_LIBDIR/ppp.sh"
+# shellcheck source=/dev/null
+source "$WBT_LIBDIR/share.sh"
+# shellcheck source=/dev/null
+source "$WBT_LIBDIR/watch.sh"
+# shellcheck source=/dev/null
+source "$WBT_LIBDIR/deps.sh"
+# shellcheck source=/dev/null
+source "$WBT_LIBDIR/doctor.sh"
+# shellcheck source=/dev/null
+source "$WBT_LIBDIR/status.sh"
+# shellcheck source=/dev/null
+source "$WBT_LIBDIR/usb.sh"
+# shellcheck source=/dev/null
+source "$WBT_LIBDIR/sstp.sh"
+
+usage_es() {
+    cat <<'EOF'
+wbt - Internet por NetShare (PPP sobre Wi-Fi Direct)
+
+Uso:
+  sudo wbt ppp              Conecta por PPP (lo usa wbt-ppp.service)
+  sudo wbt share            Comparte el enlace con wifi-hotspot
+  sudo wbt unshare          Detiene el hotspot
+  sudo wbt watch            Vigila el enlace y lo recupera
+  wbt doctor                Diagnóstico de solo lectura
+  wbt status                Estado del enlace y del hotspot
+  wbt deps                  Comprueba dependencias
+  wbt stop                  Detiene vigilancia, hotspot y PPP
+  wbt logs                  Muestra los últimos logs
+  wbt version               Versión
+  wbt help [es|en]          Esta ayuda
+
+Opciones:
+  wbt ppp --service         Modo servicio (sin prompts)
+  wbt share --ssid X --password Y
+  wbt watch --once          Una sola pasada del watchdog
+  wbt watch --interval N    Intervalo en segundos (por defecto 20)
+  wbt deps --install        Instala lo que falte (apt/dnf/pacman/zypper)
+  wbt status --full         Incluye la IP pública
+
+Flujo con hotspot:
+  1. wbt ppp detecta el hotspot activo y lo detiene.
+  2. Conecta wlan0 a DIRECT-NS-*.
+  3. Levanta PPP y espera ppp0.
+  4. Reactiva el hotspot con --uplink ppp0 y el canal real de la STA.
+  El watcher repite la recuperación si el enlace deja de pasar tráfico.
+
+Requisitos:
+  - NetShare activo en el teléfono y SIN VPN (RethinkDNS, Tailscale, etc.).
+  - pppd, python3, curl, iproute2, iw, NetworkManager y util-linux.
+  - wifi-hotspot solo para wbt share (https://github.com/CarlosDelRosario7/wifi-hotspot).
+
+Documentación: README.md (español) y README.en.md (English).
+EOF
+}
+
+usage_en() {
+    cat <<'EOF'
+wbt - Internet through NetShare (PPP over Wi-Fi Direct)
+
+Usage:
+  sudo wbt ppp              Connect over PPP (used by wbt-ppp.service)
+  sudo wbt share            Share the link through wifi-hotspot
+  sudo wbt unshare          Stop the hotspot
+  sudo wbt watch            Watch the link and recover it
+  wbt doctor                Read-only diagnostics
+  wbt status                Link and hotspot status
+  wbt deps                  Check dependencies
+  wbt stop                  Stop watcher, hotspot and PPP
+  wbt logs                  Show recent logs
+  wbt version               Version
+  wbt help [es|en]          This help
+
+Options:
+  wbt ppp --service         Service mode (no prompts)
+  wbt share --ssid X --password Y
+  wbt watch --once          Run the watchdog once
+  wbt watch --interval N    Interval in seconds (default: 20)
+  wbt deps --install        Install missing packages (apt/dnf/pacman/zypper)
+  wbt status --full         Include the public IP
+
+Hotspot flow:
+  1. wbt ppp detects an active hotspot and stops it.
+  2. It connects wlan0 to DIRECT-NS-*.
+  3. It brings PPP up and waits for ppp0.
+  4. It restarts the hotspot with --uplink ppp0 and the real STA channel.
+  The watcher repeats recovery when the link stops passing traffic.
+
+Requirements:
+  - NetShare running on the phone and NO VPN (RethinkDNS, Tailscale, etc.).
+  - pppd, python3, curl, iproute2, iw, NetworkManager and util-linux.
+  - wifi-hotspot only for wbt share (https://github.com/CarlosDelRosario7/wifi-hotspot).
+
+Documentation: README.md (Spanish) and README.en.md (English).
+EOF
+}
+
+help_run() {
+    case "${1:-both}" in
+        es) usage_es ;;
+        en) usage_en ;;
+        both)
+            usage_es
+            printf '\n%s\n\n' '--------------------------------------------------------------------------'
+            usage_en
+            ;;
+        *)
+            usage_es
+            ;;
+    esac
+}
+
+logs_run() {
+    if wbt_is_systemd && wbt_unit_exists wbt-ppp.service; then
+        journalctl -u wbt-ppp.service -u wbt-watch.service -n 120 --no-pager "$@"
+    elif [[ -r "$WBT_LOG_FILE" ]]; then
+        tail -n 120 "$WBT_LOG_FILE"
+    else
+        wbt_warn "No hay logs disponibles."
+    fi
+}
+
+stop_run() {
+    local keep_share=0
+    [[ "${1:-}" == "--keep-share" ]] && keep_share=1
+    wbt_require_root "stop"
+
+    if wbt_unit_active wbt-watch.service; then
+        wbt_log "Deteniendo wbt-watch.service ..."
+        systemctl stop wbt-watch.service || true
+    fi
+    if ((keep_share == 0)); then
+        share_stop
+    fi
+    ppp_stop
+    wbt_log "wbt detenido."
+}
+
+cmd_ppp() {
+    local mode="manual" host="$WBT_VPN_HOST" port="$WBT_PPP_PORT"
+    while (($#)); do
+        case "$1" in
+            --service) mode="service" ;;
+            --host) shift; host="${1:-$host}" ;;
+            --port) shift; port="${1:-$port}" ;;
+            *) wbt_die "Opción desconocida para ppp: $1" ;;
+        esac
+        shift
+    done
+    ppp_run_main "$mode" "$host" "$port"
+}
+
+cmd_share() {
+    local ssid="" password=""
+    while (($#)); do
+        case "$1" in
+            --ssid) shift; ssid="${1:-}" ;;
+            --password) shift; password="${1:-}" ;;
+            --ssid=*) ssid="${1#*=}" ;;
+            --password=*) password="${1#*=}" ;;
+            *) wbt_die "Opción desconocida para share: $1" ;;
+        esac
+        shift
+    done
+    share_start "$ssid" "$password"
+}
+
+cmd_watch() {
+    local once=0 interval="$WBT_WATCH_INTERVAL"
+    while (($#)); do
+        case "$1" in
+            --once) once=1 ;;
+            --interval) shift; interval="${1:-$interval}" ;;
+            --interval=*) interval="${1#*=}" ;;
+            *) wbt_die "Opción desconocida para watch: $1" ;;
+        esac
+        shift
+    done
+    [[ "$interval" =~ ^[0-9]+$ ]] || wbt_die "Intervalo inválido: $interval"
+    WBT_WATCH_INTERVAL="$interval"
+    if ((once)); then
+        wbt_require_root "watch"
+        wbt_run_dir
+        watch_once
+        return 0
+    fi
+    watch_loop "$interval"
+}
+
+cmd_deps() {
+    if [[ "${1:-}" == "--install" ]]; then
+        wbt_require_root "deps --install"
+        deps_install
+        printf '\n'
+    fi
+    deps_check
+}
+
+main() {
+    local command="${1:-status}"
+    [[ $# -gt 0 ]] && shift
+
+    case "$command" in
+        ppp) cmd_ppp "$@" ;;
+        usb) usb_run ;;
+        sstp) sstp_run ;;
+        share) cmd_share "$@" ;;
+        unshare)
+            wbt_require_root "unshare"
+            share_stop
+            wbt_log "Hotspot detenido."
+            ;;
+        watch) cmd_watch "$@" ;;
+        doctor) doctor_run ;;
+        deps) cmd_deps "$@" ;;
+        status) status_run "${1:-}" ;;
+        stop) stop_run "${1:-}" ;;
+        logs) logs_run "$@" ;;
+        version | --version | -V) printf 'wbt %s\n' "$WBT_VERSION" ;;
+        help | --help | -h) help_run "${1:-both}" ;;
+        *)
+            wbt_err "Comando desconocido: $command"
+            printf 'Prueba: wbt help\n' >&2
+            exit 2
+            ;;
+    esac
+}
+
+main "$@"
