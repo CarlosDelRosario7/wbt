@@ -36,6 +36,8 @@ source "$WBT_LIBDIR/share.sh"
 # shellcheck source=/dev/null
 source "$WBT_LIBDIR/watch.sh"
 # shellcheck source=/dev/null
+source "$WBT_LIBDIR/service.sh"
+# shellcheck source=/dev/null
 source "$WBT_LIBDIR/deps.sh"
 # shellcheck source=/dev/null
 source "$WBT_LIBDIR/doctor.sh"
@@ -58,7 +60,10 @@ Uso:
   wbt doctor                Diagnóstico de solo lectura
   wbt status                Estado del enlace y del hotspot
   wbt deps                  Comprueba dependencias
-  wbt stop                  Detiene vigilancia, hotspot y PPP
+  sudo wbt start            Arranca wbt ahora (solo esta sesión)
+  sudo wbt stop             Detiene wbt ahora
+  sudo wbt enable           Arranca ahora y con el sistema
+  sudo wbt disable          Detiene y quita el arranque con el sistema
   wbt logs                  Muestra los últimos logs
   wbt version               Versión
   wbt help [es|en]          Esta ayuda
@@ -70,6 +75,11 @@ Opciones:
   wbt watch --interval N    Intervalo en segundos (por defecto 20)
   wbt deps --install        Instala lo que falte (apt/dnf/pacman/zypper)
   wbt status --full         Incluye la IP pública
+  wbt stop --keep-share     Detiene el enlace pero conserva el hotspot
+
+Arranque:
+  Por defecto wbt NO se inicia con el sistema. Usa 'wbt start' para esta
+  sesión o 'wbt enable' para activarlo en cada arranque.
 
 Flujo con hotspot:
   1. wbt ppp detecta el hotspot activo y lo detiene.
@@ -99,7 +109,10 @@ Usage:
   wbt doctor                Read-only diagnostics
   wbt status                Link and hotspot status
   wbt deps                  Check dependencies
-  wbt stop                  Stop watcher, hotspot and PPP
+  sudo wbt start            Start wbt now (this session only)
+  sudo wbt stop             Stop wbt now
+  sudo wbt enable           Start now and at boot
+  sudo wbt disable          Stop and remove from boot
   wbt logs                  Show recent logs
   wbt version               Version
   wbt help [es|en]          This help
@@ -111,6 +124,11 @@ Options:
   wbt watch --interval N    Interval in seconds (default: 20)
   wbt deps --install        Install missing packages (apt/dnf/pacman/zypper)
   wbt status --full         Include the public IP
+  wbt stop --keep-share     Stop the link but keep the hotspot
+
+Boot:
+  By default wbt does NOT start with the system. Use 'wbt start' for this
+  session or 'wbt enable' to start it on every boot.
 
 Hotspot flow:
   1. wbt ppp detects an active hotspot and stops it.
@@ -151,22 +169,6 @@ logs_run() {
     else
         wbt_warn "No hay logs disponibles."
     fi
-}
-
-stop_run() {
-    local keep_share=0
-    [[ "${1:-}" == "--keep-share" ]] && keep_share=1
-    wbt_require_root "stop"
-
-    if wbt_unit_active wbt-watch.service; then
-        wbt_log "Deteniendo wbt-watch.service ..."
-        systemctl stop wbt-watch.service || true
-    fi
-    if ((keep_share == 0)); then
-        share_stop
-    fi
-    ppp_stop
-    wbt_log "wbt detenido."
 }
 
 cmd_ppp() {
@@ -247,7 +249,10 @@ main() {
         doctor) doctor_run ;;
         deps) cmd_deps "$@" ;;
         status) status_run "${1:-}" ;;
-        stop) stop_run "${1:-}" ;;
+        start) service_start ;;
+        stop) service_stop "${1:-}" ;;
+        enable) service_enable ;;
+        disable) service_disable ;;
         logs) logs_run "$@" ;;
         version | --version | -V) printf 'wbt %s\n' "$WBT_VERSION" ;;
         help | --help | -h) help_run "${1:-both}" ;;

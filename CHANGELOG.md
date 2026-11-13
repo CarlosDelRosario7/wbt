@@ -4,6 +4,24 @@ Todas las versiones notables de `wbt`. El formato sigue
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el proyecto usa
 versionado semántico.
 
+## [0.1.2] - 2026-11-13
+
+### Añadido
+
+- Comandos `wbt start`, `wbt stop`, `wbt enable` y `wbt disable` para decidir
+  cuándo arranca wbt.
+- Opción `--enable` en `install.sh` para habilitar el arranque con el sistema.
+
+### Cambiado
+
+- Por defecto wbt **ya no arranca con el sistema**: el instalador deja las
+  unidades deshabilitadas y el usuario elige con `wbt start` (solo la sesión)
+  o `wbt enable` (también en cada arranque).
+- `wbt stop` conserva el estado de habilitación; para quitarlo del arranque se
+  usa `wbt disable`.
+- `wbt status` y `wbt doctor` distinguen "detenido a propósito" de una caída:
+  muestran la vigilancia como detenida y no la marcan como advertencia.
+
 ## [0.1.1] - 2026-11-10
 
 ### Corregido

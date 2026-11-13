@@ -118,8 +118,8 @@ watch_recover() {
         wbt_err "La unidad wbt-ppp.service no está instalada."
         return 1
     fi
-    if ! wbt_unit_enabled wbt-ppp.service; then
-        wbt_warn "wbt-ppp.service está deshabilitado; no se reinicia (actívalo con systemctl enable wbt-ppp)."
+    if [[ "$(systemctl is-enabled wbt-ppp.service 2>/dev/null || true)" == "masked" ]]; then
+        wbt_err "wbt-ppp.service está enmascarado; no se puede reiniciar."
         return 1
     fi
     wbt_log "Reiniciando wbt-ppp.service ..."
@@ -194,6 +194,10 @@ watch_status_line() {
     local failures last
     if ! wbt_have systemctl; then
         printf 'systemd no disponible\n'
+        return 1
+    fi
+    if ! wbt_unit_active wbt-watch.service; then
+        printf 'detenido\n'
         return 1
     fi
     failures="$(watch_read_int "$WBT_WATCH_FAILS_FILE" 0)"

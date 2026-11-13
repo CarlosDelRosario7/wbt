@@ -22,6 +22,8 @@ source "$WBT_LIBDIR/ppp.sh"
 source "$WBT_LIBDIR/share.sh"
 # shellcheck source=lib/watch.sh
 source "$WBT_LIBDIR/watch.sh"
+# shellcheck source=lib/service.sh
+source "$WBT_LIBDIR/service.sh"
 # shellcheck source=lib/deps.sh
 source "$WBT_LIBDIR/deps.sh"
 
@@ -148,6 +150,44 @@ if ! watch_cooldown_ok "$WBT_RUN_DIR/test.last" 3600; then
 else
     fail "enfriamiento activo"
 fi
+(
+    wbt_have() { return 0; }
+    wbt_unit_active() { return 1; }
+    watch_status_line || true
+) >"$WBT_RUN_DIR/watch-status.txt"
+assert_eq "detenido" "$(cat "$WBT_RUN_DIR/watch-status.txt")" "watch_status_line informa detenido"
+
+section "Watch: recuperar con unidad deshabilitada"
+recover_log="$WBT_RUN_DIR/recover.log"
+set +e
+(
+    wbt_is_systemd() { return 0; }
+    wbt_unit_exists() { return 0; }
+    systemctl() {
+        printf '%s\n' "$*" >>"$recover_log"
+        [[ "$1" == "is-enabled" ]] && printf 'disabled\n'
+        return 0
+    }
+    watch_recover >/dev/null 2>&1
+)
+recover_rc=$?
+set -e
+assert_rc 0 "$recover_rc" "watch_recover acepta unidades deshabilitadas"
+assert_contains "$(cat "$recover_log")" "restart wbt-ppp.service" "reinicia wbt-ppp deshabilitado"
+
+section "Servicios: unidades y arranque manual"
+assert_eq "wbt-ppp.service wbt-watch.service" \
+    "$(service_units | paste -sd ' ' -)" "lista las unidades"
+systemctl_log="$WBT_RUN_DIR/systemctl.log"
+(
+    wbt_require_root() { :; }
+    wbt_is_systemd() { return 0; }
+    wbt_unit_exists() { return 0; }
+    systemctl() { printf '%s\n' "$*" >>"$systemctl_log"; }
+    service_start >/dev/null
+)
+assert_contains "$(cat "$systemctl_log")" "start wbt-ppp.service" "service_start arranca wbt-ppp"
+assert_contains "$(cat "$systemctl_log")" "start wbt-watch.service" "service_start arranca wbt-watch"
 
 section "CLI: ayuda bilingüe y versión"
 help_es="$("$ROOT/bin/wbt" help es)"
@@ -157,7 +197,12 @@ assert_contains "$help_es" "Uso:" "ayuda en español"
 assert_contains "$help_en" "Usage:" "ayuda en inglés"
 assert_contains "$help_both" "Uso:" "--help incluye español"
 assert_contains "$help_both" "Usage:" "--help incluye inglés"
-assert_eq "wbt 0.1.1" "$("$ROOT/bin/wbt" version)" "wbt version"
+assert_contains "$help_es" "wbt start" "ayuda incluye start"
+assert_contains "$help_es" "wbt enable" "ayuda incluye enable"
+assert_contains "$help_en" "wbt disable" "ayuda incluye disable"
+install_help="$("$ROOT/install.sh" --help)"
+assert_contains "$install_help" "--enable" "instalador ofrece --enable"
+assert_eq "wbt 0.1.2" "$("$ROOT/bin/wbt" version)" "wbt version"
 
 set +e
 "$ROOT/bin/wbt" comando-inexistente >/dev/null 2>&1

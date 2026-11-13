@@ -85,8 +85,8 @@ sudo ./install.sh
 The installer:
 
 - copies `wbt` to `/usr/local/bin` and the libraries to `/usr/local/lib/wbt`;
-- installs `wbt-ppp.service` and `wbt-watch.service`;
-- enables both services;
+- installs `wbt-ppp.service` and `wbt-watch.service`, **without enabling boot
+  startup** unless you pass `--enable`;
 - installs missing dependencies with `apt`, `dnf`, `pacman` or `zypper`
   (it does not run `apt update`);
 - creates `/etc/wbt/wbt.conf.example` (defaults work without configuration).
@@ -96,20 +96,32 @@ Options:
 ```bash
 sudo ./install.sh --with-hotspot   # install wifi-hotspot if missing
 sudo ./install.sh --no-deps        # do not touch the package manager
-sudo ./install.sh --no-enable      # install but do not enable services
-sudo ./install.sh --start          # start wbt-ppp and wbt-watch at the end
+sudo ./install.sh --enable         # start wbt automatically at boot
+sudo ./install.sh --start          # start wbt now, without enabling boot
 sudo ./install.sh --prefix /usr    # install under /usr instead of /usr/local
 ```
 
 ### Startup
 
+By default the installer does **not** enable boot startup. You decide:
+
 ```bash
-sudo systemctl start wbt-ppp wbt-watch
+sudo wbt start      # start now, this session only
+sudo wbt stop       # stop now
+sudo wbt enable     # start now and on every boot
+sudo wbt disable    # stop and remove from boot
+```
+
+To start it now and check the status:
+
+```bash
+sudo wbt start
 wbt status
 ```
 
 If the hotspot was active, `wbt-ppp` stops it for a few seconds, connects the
-STA, brings PPP up and restores it with the correct uplink.
+STA, brings PPP up and restores it with the correct uplink. Use `wbt enable`
+if you want boot startup; `wbt start` does not enable it.
 
 ### Supported distributions
 
@@ -136,7 +148,10 @@ in the foreground if systemd is unavailable.
 | `wbt status` | Link, service and hotspot status |
 | `wbt deps` | Check dependencies |
 | `sudo wbt deps --install` | Install missing packages |
+| `sudo wbt start` | Start wbt now, without changing boot startup |
 | `sudo wbt stop` | Stop watcher, hotspot and PPP |
+| `sudo wbt enable` | Start now and enable it on every boot |
+| `sudo wbt disable` | Stop and remove it from boot |
 | `wbt logs` | Recent service logs |
 | `wbt version` | Version |
 | `wbt help [es\|en]` | Bilingual help |
@@ -201,6 +216,15 @@ journalctl -u wbt-ppp -u wbt-watch -f
 - `wbt-watch.service`: runs `wbt watch --interval 20`. It checks IP, route and
   HTTP; restarts `wbt-ppp` after two consecutive failures, with a 90-second
   cooldown. It also detects hotspot startup and fixes uplink/channel.
+
+The units are installed **disabled** by default. Boot startup is controlled
+with:
+
+```bash
+sudo wbt start      # now, this session only
+sudo wbt enable     # now and on every boot
+sudo wbt disable    # stop and remove from boot
+```
 
 Stop everything:
 
@@ -324,6 +348,7 @@ lib/wifi.sh                 STA, DIRECT-NS-*, channel and AP+STA
 lib/ppp.sh                  PPP peer, proxy, startup sequence
 lib/share.sh                wifi-hotspot integration
 lib/watch.sh                Health watchdog
+lib/service.sh              Manual and boot startup (systemd)
 lib/doctor.sh               Diagnostics
 lib/status.sh               Status
 lib/deps.sh                 Per-distro dependencies

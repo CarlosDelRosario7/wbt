@@ -11,7 +11,7 @@ LIBDIR=""
 SYSTEMD_DIR="${SYSTEMD_DIR:-/etc/systemd/system}"
 WITH_HOTSPOT=0
 INSTALL_DEPS=1
-ENABLE=1
+ENABLE=0
 START=0
 
 usage() {
@@ -22,12 +22,15 @@ Opciones:
   --prefix RUTA        Prefijo de instalación (por defecto /usr/local)
   --with-hotspot       Instala wifi-hotspot si falta (dependencia de wbt share)
   --no-deps            No instala las dependencias del sistema
-  --no-enable          No habilita los servicios systemd
+  --enable             Habilita wbt al arrancar el sistema (por defecto: no)
+  --no-enable          No habilita el arranque automático (por defecto)
   --start              Arranca wbt-ppp y wbt-watch al terminar
   -h, --help           Esta ayuda
 
 El instalador copia wbt a /usr/local/bin y /usr/local/lib/wbt, crea
-/etc/wbt/wbt.conf.example e instala las unidades systemd.
+/etc/wbt/wbt.conf.example e instala las unidades systemd. Por defecto no
+habilita el arranque automático: inícialo con 'sudo wbt start' o actívalo
+con 'sudo wbt enable'.
 EOF
 }
 
@@ -55,6 +58,7 @@ while (($#)); do
             ;;
         --with-hotspot) WITH_HOTSPOT=1 ;;
         --no-deps) INSTALL_DEPS=0 ;;
+        --enable) ENABLE=1 ;;
         --no-enable) ENABLE=0 ;;
         --start) START=1 ;;
         -h | --help)
@@ -176,6 +180,14 @@ if ((WITH_HOTSPOT)); then
     install_hotspot
 fi
 
+if ((!ENABLE)) && command -v systemctl >/dev/null 2>&1; then
+    if systemctl is-enabled --quiet wbt-ppp.service 2>/dev/null \
+        || systemctl is-enabled --quiet wbt-watch.service 2>/dev/null; then
+        warn "Los servicios ya estaban habilitados de una instalación anterior."
+        warn "Para quitar el arranque automático: sudo wbt disable"
+    fi
+fi
+
 if ((ENABLE)) && command -v systemctl >/dev/null 2>&1; then
     log "Habilitando wbt-ppp.service y wbt-watch.service ..."
     systemctl enable wbt-ppp.service wbt-watch.service
@@ -195,7 +207,12 @@ printf '  Librería:  %s\n' "$LIBDIR"
 printf '  Servicios: wbt-ppp.service, wbt-watch.service\n'
 printf '\nSiguientes pasos:\n'
 if ((!START)); then
-    printf '  sudo systemctl start wbt-ppp wbt-watch\n'
+    printf '  sudo wbt start     # iniciar ahora (solo esta sesión)\n'
+fi
+if ((!ENABLE)); then
+    printf '  sudo wbt enable    # iniciar ahora y en cada arranque\n'
+else
+    printf '  wbt arrancará automáticamente con el sistema\n'
 fi
 printf '  wbt status\n'
 printf '  wbt doctor\n'

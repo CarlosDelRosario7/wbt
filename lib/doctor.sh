@@ -211,6 +211,8 @@ doctor_check_services() {
         enabled="$(systemctl is-enabled "$unit" 2>/dev/null || true)"
         if [[ "$state" == "active" ]]; then
             doctor_ok "$unit" "active, $enabled"
+        elif [[ "$enabled" == "disabled" ]]; then
+            doctor_info "$unit" "detenido (arranque manual)"
         else
             doctor_warn "$unit" "$state, $enabled"
         fi

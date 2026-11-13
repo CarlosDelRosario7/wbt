@@ -84,8 +84,8 @@ sudo ./install.sh
 El instalador:
 
 - copia `wbt` a `/usr/local/bin` y las librerías a `/usr/local/lib/wbt`;
-- instala `wbt-ppp.service` y `wbt-watch.service`;
-- habilita ambos servicios;
+- instala `wbt-ppp.service` y `wbt-watch.service`, **sin habilitarlos** para el
+  arranque salvo que uses `--enable`;
 - instala las dependencias que falten con `apt`, `dnf`, `pacman` o `zypper`
   (sin ejecutar `apt update`);
 - crea `/etc/wbt/wbt.conf.example` (los valores por defecto funcionan sin
@@ -96,20 +96,32 @@ Opciones:
 ```bash
 sudo ./install.sh --with-hotspot   # instala wifi-hotspot si falta
 sudo ./install.sh --no-deps        # no toca el gestor de paquetes
-sudo ./install.sh --no-enable      # instala pero no habilita servicios
-sudo ./install.sh --start          # arranca wbt-ppp y wbt-watch al terminar
+sudo ./install.sh --enable         # arranca wbt automáticamente con el sistema
+sudo ./install.sh --start          # arranca wbt ahora, sin habilitar el boot
 sudo ./install.sh --prefix /usr    # instala en /usr en vez de /usr/local
 ```
 
 ### Arranque
 
+Por defecto el instalador **no habilita** el arranque automático. Tú decides:
+
 ```bash
-sudo systemctl start wbt-ppp wbt-watch
+sudo wbt start      # iniciar ahora, solo para esta sesión
+sudo wbt stop       # detener ahora
+sudo wbt enable     # iniciar ahora y en cada arranque del sistema
+sudo wbt disable    # detener y quitar del arranque del sistema
+```
+
+Para iniciarlo ahora y comprobar el estado:
+
+```bash
+sudo wbt start
 wbt status
 ```
 
 Si el hotspot estaba activo, `wbt-ppp` lo detendrá unos segundos, conectará la
-STA, levantará PPP y lo restaurará con el uplink correcto.
+STA, levantará PPP y lo restaurará con el uplink correcto. `wbt enable` es la
+opción para quien quiera el arranque automático; `wbt start` no lo activa.
 
 ### Distribuciones soportadas
 
@@ -136,7 +148,10 @@ En otras distribuciones instala manualmente las dependencias y usa
 | `wbt status` | Estado del enlace, servicios y hotspot |
 | `wbt deps` | Comprueba dependencias |
 | `sudo wbt deps --install` | Instala lo que falte |
+| `sudo wbt start` | Arranca wbt ahora, sin tocar el arranque del sistema |
 | `sudo wbt stop` | Detiene watcher, hotspot y PPP |
+| `sudo wbt enable` | Arranca ahora y lo habilita en cada arranque |
+| `sudo wbt disable` | Detiene y lo quita del arranque del sistema |
 | `wbt logs` | Últimos logs de los servicios |
 | `wbt version` | Versión |
 | `wbt help [es\|en]` | Ayuda bilingüe |
@@ -199,6 +214,15 @@ journalctl -u wbt-ppp -u wbt-watch -f
 - `wbt-watch.service`: ejecuta `wbt watch --interval 20`. Comprueba IP, ruta y
   HTTP; reinicia `wbt-ppp` tras dos fallos consecutivos, con enfriamiento de
   90 s. También detecta el arranque del hotspot y corrige uplink/canal.
+
+Las unidades se instalan **deshabilitadas** por defecto. Esto controla el
+arranque automático:
+
+```bash
+sudo wbt start      # ahora, solo esta sesión
+sudo wbt enable     # ahora y en cada arranque
+sudo wbt disable    # detener y quitar del arranque
+```
 
 Para detener todo:
 
@@ -320,6 +344,7 @@ lib/wifi.sh                 STA, DIRECT-NS-*, canal y AP+STA
 lib/ppp.sh                  Peer PPP, proxy, secuencia de arranque
 lib/share.sh                Integración con wifi-hotspot
 lib/watch.sh                Watchdog de salud
+lib/service.sh              Arranque manual y automático (systemd)
 lib/doctor.sh               Diagnóstico
 lib/status.sh               Estado
 lib/deps.sh                 Dependencias por distro
